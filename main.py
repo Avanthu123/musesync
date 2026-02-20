@@ -33,17 +33,10 @@ if "waiting" not in st.session_state:
 st.markdown("""
 <style>
 
-/* Animated gradient background */
+/* Background */
 .stApp {
-    background: linear-gradient(-45deg, #0a0f0d, #000000, #0d1f18, #00110a);
-    background-size: 400% 400%;
-    animation: gradientMove 18s ease infinite;
+    background: #0a0a0a;
     color: white;
-}
-@keyframes gradientMove {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
 }
 
 /* Chat bubbles */
@@ -143,7 +136,36 @@ def get_random_tracks(n=6):
 
 
 # ----------------------------------
-# LAYOUT
+# LLM CHAIN
+# ----------------------------------
+@st.cache_resource
+def get_chain():
+    model = OllamaLLM(model="gemma3:latest")
+    prompt = ChatPromptTemplate.from_template("""
+You are MuseSync — a chill, music-obsessed AI with great taste and real personality.
+You're talking to someone who just described their mood or vibe.
+
+Their vibe: "{question}"
+
+You have these tracks lined up for them:
+{tracks}
+
+Respond like a friend who knows music inside out. Be warm, maybe a bit poetic.
+Briefly react to their vibe (1 sentence), then naturally weave in the song picks — 
+don't just list them, *say something* about why they fit.
+Keep it short (3-5 sentences max). No bullet lists. Sound human.
+""")
+    return prompt | model
+
+chain = get_chain()
+
+def format_tracks(docs):
+    lines = []
+    for d in docs:
+        m = d.metadata
+        lines.append(f"{m.get('track_name', '?')} by {m.get('artists', '?')}")
+    return ", ".join(lines)
+
 # ----------------------------------
 left, right = st.columns([1,1], gap="large")
 
@@ -155,16 +177,9 @@ with left:
         if st.button("🎲 Lucky"):
             random_docs = get_random_tracks()
             st.session_state.recommendations = random_docs
-
-            text = "Here are some random vibes for you:\n\n"
-            for d in random_docs:
-                meta = d.metadata
-                text += f"- {meta.get('track_name')} — {meta.get('artists')}\n"
-
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": text
-            })
+            lucky_q = "something random and exciting"
+            reply = chain.invoke({"question": lucky_q, "tracks": format_tracks(random_docs)})
+            st.session_state.messages.append({"role": "assistant", "content": reply})
             st.rerun()
 
     chat_container = st.container(height=600)
@@ -194,12 +209,9 @@ with left:
         docs = retriever.invoke(last_user)
         st.session_state.recommendations = docs
 
-        response_text = "Here are some tracks matching your vibe:\n\n"
-        for d in docs:
-            meta = d.metadata
-            response_text += f"- {meta.get('track_name')} — {meta.get('artists')}\n"
+        reply = chain.invoke({"question": last_user, "tracks": format_tracks(docs)})
 
-        st.session_state.messages.append({"role": "assistant", "content": response_text})
+        st.session_state.messages.append({"role": "assistant", "content": reply})
         st.session_state.waiting = False
         st.rerun()
 
