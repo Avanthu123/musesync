@@ -94,13 +94,15 @@ div.row-widget.stButton > button {
     background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
     border-radius: 14px;
     padding: 14px 16px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     border: 1px solid rgba(29,185,84,0.15);
     backdrop-filter: blur(8px);
     transition: all 0.25s ease;
     text-align: left;
     white-space: pre-line;
     font-weight: 500;
+    min-height: 70px;
+    line-height: 1.6;
 }
 
 div.row-widget.stButton > button:hover {
@@ -245,8 +247,11 @@ with right:
             tid = meta.get("track_id")
             name = meta.get("track_name", "Unknown")
             artist = meta.get("artists", "Unknown")
+            genre = meta.get("track_genre", meta.get("genre", ""))
 
-            label = f"▶ {name}\n{artist}"
+            # Build a multi-line label: bold song name, then artist + genre below
+            genre_tag = f"  ·  {genre}" if genre else ""
+            label = f"▶  {name}\n · {artist}{genre_tag}"
 
             if st.button(label, key=f"{i}_{tid}", use_container_width=True):
                 st.session_state.current_track_id = tid
